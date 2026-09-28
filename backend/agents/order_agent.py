@@ -3,8 +3,9 @@ from models import order_model
 
 SYSTEM_PROMPT = """You are the Order Management Agent inside a customer support system.
 You are given real order data retrieved from the database. Summarize it naturally and
-helpfully for the customer. Never fabricate order details beyond what is given. If asked
-to cancel and the order data says it is not cancellable, explain why clearly and
+helpfully for the customer. Never fabricate order details beyond what is given. Never
+state refund amounts, timelines, or policies that are not in the data. If asked to
+cancel and the order data says it is not cancellable, explain why clearly and
 sympathetically, and offer to raise a complaint/ticket instead. Keep replies concise."""
 
 
@@ -29,6 +30,7 @@ def handle_order_status(customer_id: str, message: str, order_number: str = None
             f"Customer asked: \"{message}\". No matching orders were found in the database "
             f"for this customer (order_number searched: {order_number}). Tell them clearly, "
             f"and ask them to double check the order number or check their order list.",
+            agent="order_agent",
         )
         return AgentResult(reply=reply, agent="order_agent", data={"orders": []})
 
@@ -37,11 +39,25 @@ def handle_order_status(customer_id: str, message: str, order_number: str = None
         SYSTEM_PROMPT,
         f"Customer asked: \"{message}\"\n\nReal order data:\n{order_summaries}\n\n"
         f"Respond to the customer using only this data.",
+        agent="order_agent",
     )
     return AgentResult(reply=reply, agent="order_agent", data={"orders": [_public(o) for o in orders]})
 
 
-def handle_cancellation(customer_id: str, message: str, order_number: str = None) -> AgentResult:
+def handle_cancellation(
+    customer_id: str,
+    message: str,
+    order_number: str = None,
+    confirmed: bool = False,
+) -> AgentResult:
+    """
+    Two-step, human-in-the-loop cancellation:
+      1. eligibility is checked in code (never by the LLM) and the customer is
+         asked to confirm;
+      2. the order is only cancelled when `confirmed=True`.
+    Replies for state-changing actions are deterministic templates.
+    """
+
     if not order_number:
         orders = order_model.list_orders_for_customer(customer_id)
         cancellable = [o for o in orders if order_model.is_cancellable(o)[0]]
@@ -52,6 +68,7 @@ def handle_cancellation(customer_id: str, message: str, order_number: str = None
                 SYSTEM_PROMPT,
                 f"Customer wants to cancel an order but did not give an order number. "
                 f"Ask them which order number they mean. Message: \"{message}\"",
+                agent="order_agent",
             )
             return AgentResult(reply=reply, agent="order_agent", data={"needs_order_number": True})
 
@@ -67,18 +84,50 @@ def handle_cancellation(customer_id: str, message: str, order_number: str = None
             f"Customer wants to cancel order {order_number}, but it is NOT cancellable. "
             f"Reason: {reason}. Order status: {order['status']}. Explain this to the customer "
             f"kindly and offer to file a complaint/ticket if they still need help.",
+            agent="order_agent",
         )
-        return AgentResult(reply=reply, agent="order_agent", data={"cancelled": False, "order": _public(order)},
-                            actions=["cancellation_denied"])
+        return AgentResult(
+            reply=reply,
+            agent="order_agent",
+            data={"cancelled": False, "order": _public(order)},
+            actions=["cancellation_denied"],
+        )
+
+    if not confirmed:
+        reply = (
+            f"Just to confirm: do you want me to cancel order {order['order_number']}? "
+            "This can't be undone. Reply \"yes\" to confirm or \"no\" to keep the order."
+        )
+        return AgentResult(
+            reply=reply,
+            agent="order_agent",
+            data={"pending_cancellation": order["order_number"], "order": _public(order)},
+            actions=["cancellation_confirmation_requested"],
+        )
 
     updated, err = order_model.cancel_order(order["_id"], reason="Cancelled via AI chat")
-    reply = call_llm(
-        SYSTEM_PROMPT,
-        f"Order {order_number} was just successfully cancelled. Confirm this warmly to the "
-        f"customer and let them know refund/next steps typically take a few business days.",
+    if err or not updated:
+        return AgentResult(
+            reply=(
+                f"I wasn't able to cancel order {order['order_number']} just now. "
+                "Please try again, or ask me to connect you with a human agent."
+            ),
+            agent="order_agent",
+            data={"cancelled": False, "order": _public(order)},
+            actions=["cancellation_failed"],
+        )
+
+    reply = (
+        f"Order {order['order_number']} has been cancelled. "
+        "I haven't confirmed any refund amount or timeframe; if you need details on that, "
+        "just ask and I'll check our refund information."
     )
-    return AgentResult(reply=reply, agent="order_agent", data={"cancelled": True, "order": _public(updated)},
-                        actions=["order_cancelled"])
+    return AgentResult(
+        reply=reply,
+        agent="order_agent",
+        data={"cancelled": True, "order": _public(updated)},
+        actions=["order_cancelled"],
+    )
 
 
 def _public(o: dict) -> dict:

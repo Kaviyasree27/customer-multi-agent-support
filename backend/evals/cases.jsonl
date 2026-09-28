@@ -1,0 +1,25 @@
+{"message": "Where is my order ORD-1001?", "expected_intent": "order_status", "expected_order_number": "ORD-1001"}
+{"message": "Please cancel order ORD-1002", "expected_intent": "order_cancel", "expected_order_number": "ORD-1002"}
+{"message": "My phone arrived cracked and I want to complain", "expected_intent": "complaint"}
+{"message": "What is the status of ticket TKT-2001?", "expected_intent": "ticket_status"}
+{"message": "I want to talk to a real person", "expected_intent": "human_handoff"}
+{"message": "hi there", "expected_intent": "greeting"}
+{"message": "what is the policy for sending things back", "expected_faq": "return policy"}
+{"message": "how do i send an item back to you", "expected_faq": "return a product"}
+{"message": "my item came broken, what now", "expected_faq": "arrives damaged"}
+{"message": "you sent me the wrong product", "expected_faq": "wrong item"}
+{"message": "can i swap this for a different size", "expected_faq": "exchange"}
+{"message": "how long until i get my money back", "expected_faq": "refunds take"}
+{"message": "how many days does delivery take", "expected_faq": "shipping take"}
+{"message": "what does delivery cost", "expected_faq": "shipping cost"}
+{"message": "my parcel is late", "expected_faq": "order is delayed"}
+{"message": "do you deliver to other countries", "expected_faq": "ship internationally"}
+{"message": "where is my package, how do i track it", "expected_faq": "track my order"}
+{"message": "i want to stop my order before it ships", "expected_faq": "cancel my order"}
+{"message": "i typed the wrong address at checkout", "expected_faq": "delivery address"}
+{"message": "can i pay with upi or card", "expected_faq": "payment methods"}
+{"message": "my card got rejected at checkout", "expected_faq": "payment declined"}
+{"message": "where do i enter a coupon", "expected_faq": "discount code"}
+{"message": "does this come with a guarantee", "expected_faq": "warranty"}
+{"message": "i forgot my login password", "expected_faq": "reset my password"}
+{"message": "how can i talk to support by phone or email", "expected_faq": "contact customer support"}
