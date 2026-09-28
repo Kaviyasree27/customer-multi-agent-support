@@ -1,4 +1,4 @@
-# Aria — AI Multi-Agent Customer Support System
+# AI Multi-Agent Customer Support System
 
 A full-stack customer support platform with four interconnected AI agents, a customer
 dashboard, and an admin dashboard, built on React + Tailwind CSS, Flask, and MongoDB.
